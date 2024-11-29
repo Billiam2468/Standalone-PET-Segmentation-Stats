@@ -18,18 +18,12 @@ This zip file contains two programs:
 To use these scripts, organize your scans as follows:
 
 home_directory
-
-   ├── patient_1/
-   
-      ├── PET/
-      
-      └── CT/
-      
-   ├── patient_2/
-   
-      ├── PET/
-      
-      └── CT/
+   ├──patient_1
+         ├── PET
+         └──CT
+   └──patient_2
+         ├──PET
+         └── CT
 
 
 - Folders **PET** and **CT** **must** be named exactly as shown.  
