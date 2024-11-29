@@ -1,65 +1,4 @@
-import subprocess
-import sys
-import os
-import PySimpleGUI as sg
-from totalsegmentator.python_api import totalsegmentator
-
-
-tasks = [
-    "total",
-    "lung_vessels",
-    "body",
-    "cerebral_bleed",
-    "hip_implant",
-    "coronary_arteries",
-    "pleural_pericard_effusion",
-    "head_glands_cavities",
-    "head_muscles",
-    "headneck_bones_vessels",
-    "headneck_muscles",
-    "liver_vessels",
-    "oculomotor_muscles",
-    "heartchambers_highres",
-    "appendicular_bones",
-    "tissue_types",
-    "brain_structures",
-    "vertebrae_body",
-    "face"
-]
-
-# def runBash(command):
-#     #Execute bash command
-#     process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-#     stdout, stderr = process.communicate()
-
-#     # Print the output
-#     if stdout:
-#         print("Output:")
-#         print(stdout.decode())
-
-# def segment(DICOM, output_dir, segmentName, task, fast):
-#     # output = DICOM.split('\\')
-#     # output_str = output[3] + "_" + output[5]
-#     # os.makedirs("E:/Psoriasis/AI Segmentations/" + output_str)
-#     # d2n.convert_directory(DICOM, "E:/Psoriasis/AI Segmentations/" + output_str, compression=True)
-#     command = f'TotalSegmentator -i "{DICOM}" -o "{output_dir}/{segmentName}" --ml --force_split -ta {task}'
-#     if fast:
-#         command = command + " --fast"
-#     #command = f'moosez -d {DICOM} -m {task}'
-#     licenseAdd = "totalseg_set_license -l aca_8A7ZF34MCHLWKN"
-#     runBash(licenseAdd)
-#     runBash(command)
-
-# def install_dependencies():
-#     for dependency in required_dependencies:
-#         try:
-#             __import__(dependency)
-#         except ImportError:
-#             print(f"Library {dependency} not found. Installing...")
-#             subprocess.check_call([sys.executable, "-m", "pip", "install", dependency])
-
-
-def main():
+def main(tasks):
     # GUI
     layout = [
         [sg.Text("Task:"), sg.Combo(tasks, default_value="total", key="TASK")],
@@ -116,5 +55,36 @@ def main():
 
 if __name__ == "__main__":
     #install_dependencies()
+    import subprocess
+    import sys
+    import os
+    import PySimpleGUI as sg
+    from totalsegmentator.python_api import totalsegmentator
+    import multiprocessing
 
-    main()
+    # Pyinstaller fix
+    multiprocessing.freeze_support()
+
+    tasks = [
+        "total",
+        "lung_vessels",
+        "body",
+        "cerebral_bleed",
+        "hip_implant",
+        "coronary_arteries",
+        "pleural_pericard_effusion",
+        "head_glands_cavities",
+        "head_muscles",
+        "headneck_bones_vessels",
+        "headneck_muscles",
+        "liver_vessels",
+        "oculomotor_muscles",
+        "heartchambers_highres",
+        "appendicular_bones",
+        "tissue_types",
+        "brain_structures",
+        "vertebrae_body",
+        "face"
+    ]
+
+    main(tasks)

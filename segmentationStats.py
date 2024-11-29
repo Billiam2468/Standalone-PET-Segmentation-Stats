@@ -544,9 +544,9 @@ def convert_raw_PET_to_SUV(pet_nifti):
 
     series_time = description[0]
     injection_time = description[1]
-    half_life = int(description[2])
-    injected_dose = int(description[3])
-    patient_weight = int(description[4]) * 1000
+    half_life = float(description[2])
+    injected_dose = float(description[3])
+    patient_weight = float(description[4])*1000
 
     time_diff = abs(calculate_time_difference(series_time, injection_time))
 
@@ -651,6 +651,7 @@ def main():
         [sg.Text("Segmentation Directory:"), sg.Input(key="SEGMENTATION_DIR"), sg.FolderBrowse()],
         [sg.Text("PET NIFTI Output Directory:"), sg.Input(key="NIFTI_OUTPUT_DIR"), sg.FolderBrowse()],
         [sg.Text("Task:"), sg.Combo(tasks, default_value="total", key="TASK")],
+        [sg.Text("CSV Output Directory:"), sg.Input(key="CSV_OUTPUT_DIR"), sg.FolderBrowse()],
         [sg.Text("CSV Output Name:"), sg.Input(key="TEXT_INPUT", size=(40, 1))],
         [sg.Button("Run"), sg.Button("Exit")]
     ]
@@ -666,6 +667,7 @@ def main():
             home_dir = values["HOME_DIR"]
             seg_dir = values["SEGMENTATION_DIR"]
             nifti_output_dir = values["NIFTI_OUTPUT_DIR"]
+            csv_output_dir = values["CSV_OUTPUT_DIR"]
             task = values["TASK"]
             csv_name = values["TEXT_INPUT"]
 
@@ -682,7 +684,9 @@ def main():
                 names = globals().get(task, None)
                 rois = list(range(1,len(names)+1))
                 stats = statistics_from_rois(seg_dir, SUV_vals, ".nii.gz", rois=rois, name_reference=names)
-                save_to_csv(stats, csv_name+".csv")
+
+                csv_path = os.path.join(csv_output_dir, csv_name+".csv")
+                save_to_csv(stats, csv_path)
                 sg.popup("Segmentation(s) completed successfully!")
             except Exception as e:
                 sg.popup_error(f"An error occurred: {e}")
@@ -703,6 +707,10 @@ def main():
 
 if __name__ == "__main__":
     start_time = time.time()
+    import multiprocessing
+
+    # Pyinstaller fix
+    multiprocessing.freeze_support()
     main()
     end_time = time.time()
     execution_time = end_time - start_time
