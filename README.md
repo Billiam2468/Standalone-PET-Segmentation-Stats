@@ -17,20 +17,14 @@ This zip file contains two programs:
 ### **Required Directory Structure**:
 To use these scripts, organize your scans as follows:
 
-home_directory
-
-   patient_1
-
-      PET
-      
-      CT
-
-   patient_2
-
-      PET
-
-      CT
-
+home_directory/
+├── patient_1/
+│   ├── PET
+│   └── CT
+└── patient_2/
+    ├── PET
+    └── CT
+    
 - Folders **PET** and **CT** **must** be named exactly as shown.  
 - These folders must contain all DICOM files for the corresponding PET and CT scans.  
 - The root folder, referred to as `home_directory`, contains all patient folders and their scans.
