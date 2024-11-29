@@ -1,4 +1,4 @@
-## **READ THIS FIRST BEFORE USING**
+## **README**
 
 ### **CREDITS**
 - **TotalSegmentator Model**: [https://github.com/wasserth/TotalSegmentator](https://github.com/wasserth/TotalSegmentator)  
