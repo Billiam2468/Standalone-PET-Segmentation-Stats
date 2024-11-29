@@ -17,7 +17,15 @@ This zip file contains two programs:
 ### **Required Directory Structure**:
 To use these scripts, organize your scans as follows:
 
-<pre> ``` home_directory/ ├── patient_1/ │ ├── PET/ │ └── CT/ ├── patient_2/ │ ├── PET/ │ └── CT/ ``` </pre>
+<pre>
+home_directory/
+   ├── patient_1/
+         ├── PET/
+         └── CT/
+   ├── patient_2/
+         ├── PET/
+         └── CT/
+</pre>
     
 - Folders **PET** and **CT** **must** be named exactly as shown.  
 - These folders must contain all DICOM files for the corresponding PET and CT scans.  
