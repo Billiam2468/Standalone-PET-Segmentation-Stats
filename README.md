@@ -2,7 +2,7 @@
 
 ### **CREDITS**
 - **TotalSegmentator Model**: [https://github.com/wasserth/TotalSegmentator](https://github.com/wasserth/TotalSegmentator)  
-- **William Lee**: Drexel COM  
+- **William Lee** (Drexel COM)
 
 ---
 
