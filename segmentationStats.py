@@ -493,9 +493,6 @@ def dicom2nifti(home_dir, output_dir):
 
                     move_DICOM_Metadata_To_NIFTI(dicom_path, nifti_path)
                     rename_PET_nifti(nifti_path)
-
-
-
                 else:
                     print(f"PET folder doesn't exist in {patient.name}")
 
@@ -550,8 +547,10 @@ def convert_raw_PET_to_SUV(pet_nifti):
 
     time_diff = abs(calculate_time_difference(series_time, injection_time))
 
+    # This factor accounts for decay of injected dose
     decay_correction_factor = np.exp(-np.log(2) * ((time_diff/half_life)))
 
+    # SUV = img data/(injected dose/body weight) = (img data * bodyweight)/(injected dose)
     SUV_factor = (patient_weight) / (injected_dose * decay_correction_factor)
 
     print("SUV_factor ", SUV_factor)
