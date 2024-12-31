@@ -384,7 +384,6 @@ def upscale_suv_values_3d(suv_values, new_shape):
 
 import dicom_numpy
 
-
 def get_dicom_files_from_folder(folder_path):
     """
     Returns a list of paths to DICOM files in the given folder.
@@ -447,6 +446,7 @@ def rename_PET_nifti(pet_nifti_path):
     shutil.move(pet_nifti_path, new_path)
     os.rmdir(os.path.dirname(pet_nifti_path))
 
+# Takes the relevant metadata from the DICOM file including the directory it came from and moves it into the metadata of the NIFTI file
 def move_DICOM_Metadata_To_NIFTI(dicom_path, nifti_path, dicom_folder):
     ds = pydicom.dcmread(dicom_path)
     seriesTime = ds.SeriesTime
@@ -456,49 +456,11 @@ def move_DICOM_Metadata_To_NIFTI(dicom_path, nifti_path, dicom_folder):
     patientWeight = ds.PatientWeight
     numSlices = ds.NumberOfSlices
 
-
-    # # This block of code extracts the slopes and intercepts of each slice of the DICOM and returns a string that stores the data in an order that can be read and processed later
-    # slopes = [None] * numSlices
-    # intercepts = [None] * numSlices
-    # for file in os.listdir(dicom_files):
-    #     if file.startswith("."):
-    #         continue
-    #     else:
-    #         current_dicom = os.path.join(dicom_files, file)
-    #         ds = pydicom.dcmread(current_dicom)
-    #         instanceNumber = ds.InstanceNumber
-    #         rescaleSlope = ds.RescaleSlope
-    #         rescaleIntercept = ds.RescaleIntercept
-    #         slopes[instanceNumber-1] = rescaleSlope
-    #         intercepts[instanceNumber-1] = rescaleIntercept
-    
-    # slopesString = 'y'.join(map(str, slopes))
-    # interceptsString = 'y'.join(map(str, intercepts))
-    # print(len(slopes))
-    # print(slopesString)
-    # print(len(intercepts))
-    # print(interceptsString)
-
-    # Ideas:
-    # use ds.InstanceNumber to get index of slice for array index
-    # use ds.NumberOfSlices to get number of slices for scan
-
-
-
-    # #Data to get:
-    # # ds.SeriesTime (Series time)
-    # # ds.RadiopharmaceuticalInformationSequence[0].RadiopharmaceuticalStartTime (Injection time)
-    # # ds.RadiopharmaceuticalInformationSequence[0].RadionuclideHalfLife (Half life)
-    # # ds.RadiopharmaceuticalInformationSequence[0].RadionuclideTotalDose (Injected dose)
-    # # ds.PatientWeight (Patient weight)
-
-    # print("275 slope and intercept")
-    # print(slopes[223])
-    # print(intercepts[223])
-
-
     nifti_file = nib.load(nifti_path)
+
     nifti_file.header['descrip'] = f"{seriesTime}x{injectionTime}x{halfLife}x{injectedDose}x{patientWeight}"
+    directory_binary = dicom_folder.encode('utf-8')  # Convert to bytes
+    nifti_file.header.extensions.append(nib.nifti1.Nifti1Extension(code=6, content=directory_binary))
 
     nib.save(nifti_file, nifti_path)
 
@@ -573,13 +535,63 @@ def calculate_time_difference(scan_time_str, injection_time_str):
     #return 2400
     return total_seconds
 
+# Extracts the stored file directory in the NIFTI file header
+def retrieve_file_directory(pet_nifti):
+    nifti_file = nib.load(pet_nifti)
+    header = nifti_file.header
+     # Look for the directory path in custom extensions
+    for ext in header.extensions:
+        content = ext.get_content().decode('utf-8')  # Convert bytes back to string
+        if content.startswith("/"):  # Assuming directory paths start with '/'
+            return content
+
+
+def compare_arrays(arr1, arr2, tolerance=1e-2):
+    # Ensure arrays are of the same size
+    if arr1.shape != arr2.shape:
+        print("Arrays are of different sizes.")
+        return
+
+    # Compare element-wise with tolerance
+    comparison = np.isclose(arr1, arr2, atol=tolerance)
+
+    # Calculate the percentage of identical values
+    identical_count = np.sum(comparison)
+    total_elements = arr1.size
+    identical_percentage = (identical_count / total_elements) * 100
+
+    print(f"The arrays are {identical_percentage:.2f}% identical.")
+
+    # Show indexes and values where arrays don't match
+    mismatches = np.where(comparison == False)
+    if len(mismatches[0]) > 0:
+        print("Indexes where the arrays do not match (with tolerance):")
+        for idx in zip(*mismatches):  # Unpack the 3D indices
+            print(f"Index: {idx}, arr1 value: {arr1[idx]}, arr2 value: {arr2[idx]}")
+    else:
+        print("No mismatches found.")
+
 def convert_raw_PET_to_SUV(pet_nifti):
-    PET_data = load_nifti_file(pet_nifti)
+    PET_data = None #load_nifti_file(pet_nifti)
 
     nifti_file = nib.load(pet_nifti)
     description = nifti_file.header['descrip'].tobytes().decode('ascii').split("x")
     description = [value.rstrip('\x00') for value in description]
     print(description)
+
+    directory = retrieve_file_directory(pet_nifti)
+    print(directory)
+
+    dicom_files = get_dicom_files_from_folder(directory)
+    if dicom_files:
+        PET_data = extract_voxel_data(dicom_files)
+        print("PET data shape:", PET_data.shape)
+    else:
+        print("No valid DICOM files found in the folder.")
+
+
+    #aux_file = nifti_file.header['aux_file'].tobytes().decode('ascii')
+    #print(aux_file)
 
     series_time = description[0]
     injection_time = description[1]
@@ -602,23 +614,16 @@ def convert_raw_PET_to_SUV(pet_nifti):
     SUV_factor = (patient_weight) / (injected_dose * decay_correction_factor)
 
     print("SUV_factor ", SUV_factor)
-    print("shape ", PET_data.shape)
-    print("raw value at pixel: ", PET_data[60, 70, 223])
+    final = (PET_data * SUV_factor).astype(np.float32)
 
 
-    folder_path = "/Users/williamlee/Documents/Example/31/PET/"
-    dicom_files = get_dicom_files_from_folder(folder_path)
-    if dicom_files:
-        voxel_data = extract_voxel_data(dicom_files)
-        print("Voxel data shape:", voxel_data.shape)
-    else:
-        print("No valid DICOM files found in the folder.")
-    print("raw value ", voxel_data[60, 70, 223])
-    
+    realData = load_nifti_file("/Users/williamlee/Desktop/realSUV.nii.gz")
 
+    compare_arrays(final, realData)
 
-    #return( ((PET_data*rescale_slope)+rescale_intercept) * SUV_factor).astype(np.float32)
-    return PET_data
+    print(final[80, 80, 100])
+
+    return final
 
 # Function that takes the path of NIFTIs, creates a reference to its DICOM for metadata, and returns a dictionary of SUV values for each PET NIFTI
 def extractSUVs(nifti_path):
