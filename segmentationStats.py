@@ -382,27 +382,34 @@ def upscale_suv_values_3d(suv_values, new_shape):
     
     return suv_interpolated.astype(np.float32)
 
-# def optimized_suv_statistics(roi_data, pet_data, reference, rois):
-#     unique_rois = np.arange(0, len(reference))
-#     suv_stats = {}
+import dicom_numpy
 
-#     # Initialize stats dictionary for all ROIs
-#     for roi in unique_rois:
-#         if roi != 0:  # Keep the background if needed for the left toe metatarsal
-#             suv_stats[reference[roi]] = {'mean': 0, 'max': -np.inf, 'median': 0, 'num_val': 0}
 
-#     # Vectorize mask and compute statistics in one pass for each ROI
-#     for roi in rois:
-#         roi_mask = (roi_data == roi)
-#         suv_values = pet_data[roi_mask]
+def get_dicom_files_from_folder(folder_path):
+    """
+    Returns a list of paths to DICOM files in the given folder.
+    """
+    dicom_files = []
+    for file_name in os.listdir(folder_path):
+        file_path = os.path.join(folder_path, file_name)
+        if os.path.isfile(file_path):
+            try:
+                # Verify if the file is a valid DICOM file
+                pydicom.dcmread(file_path, stop_before_pixels=True)
+                dicom_files.append(file_path)
+            except pydicom.errors.InvalidDicomError:
+                # Skip non-DICOM files
+                continue
+    return dicom_files
 
-#         if suv_values.size > 0:
-#             suv_stats[reference[roi]]['mean'] = np.mean(suv_values)  # Using np.mean directly
-#             suv_stats[reference[roi]]['max'] = np.max(suv_values)
-#             suv_stats[reference[roi]]['median'] = np.median(suv_values)
-#             suv_stats[reference[roi]]['num_val'] = suv_values.size
-
-#     return suv_stats
+def extract_voxel_data(list_of_dicom_files):
+    datasets = [pydicom.read_file(f) for f in list_of_dicom_files]
+    try:
+        voxel_ndarray, ijk_to_xyz = dicom_numpy.combine_slices(datasets)
+    except dicom_numpy.DicomImportException as e:
+        # invalid DICOM data
+        raise
+    return voxel_ndarray
 
 def more_optimized_suv_statistics(roi_data, pet_data, reference):
     # Flatten arrays for faster processing
@@ -440,7 +447,44 @@ def rename_PET_nifti(pet_nifti_path):
     shutil.move(pet_nifti_path, new_path)
     os.rmdir(os.path.dirname(pet_nifti_path))
 
-def move_DICOM_Metadata_To_NIFTI(dicom_path, nifti_path):
+def move_DICOM_Metadata_To_NIFTI(dicom_path, nifti_path, dicom_folder):
+    ds = pydicom.dcmread(dicom_path)
+    seriesTime = ds.SeriesTime
+    injectionTime = ds.RadiopharmaceuticalInformationSequence[0].RadiopharmaceuticalStartTime
+    halfLife = ds.RadiopharmaceuticalInformationSequence[0].RadionuclideHalfLife
+    injectedDose = ds.RadiopharmaceuticalInformationSequence[0].RadionuclideTotalDose
+    patientWeight = ds.PatientWeight
+    numSlices = ds.NumberOfSlices
+
+
+    # # This block of code extracts the slopes and intercepts of each slice of the DICOM and returns a string that stores the data in an order that can be read and processed later
+    # slopes = [None] * numSlices
+    # intercepts = [None] * numSlices
+    # for file in os.listdir(dicom_files):
+    #     if file.startswith("."):
+    #         continue
+    #     else:
+    #         current_dicom = os.path.join(dicom_files, file)
+    #         ds = pydicom.dcmread(current_dicom)
+    #         instanceNumber = ds.InstanceNumber
+    #         rescaleSlope = ds.RescaleSlope
+    #         rescaleIntercept = ds.RescaleIntercept
+    #         slopes[instanceNumber-1] = rescaleSlope
+    #         intercepts[instanceNumber-1] = rescaleIntercept
+    
+    # slopesString = 'y'.join(map(str, slopes))
+    # interceptsString = 'y'.join(map(str, intercepts))
+    # print(len(slopes))
+    # print(slopesString)
+    # print(len(intercepts))
+    # print(interceptsString)
+
+    # Ideas:
+    # use ds.InstanceNumber to get index of slice for array index
+    # use ds.NumberOfSlices to get number of slices for scan
+
+
+
     # #Data to get:
     # # ds.SeriesTime (Series time)
     # # ds.RadiopharmaceuticalInformationSequence[0].RadiopharmaceuticalStartTime (Injection time)
@@ -448,17 +492,13 @@ def move_DICOM_Metadata_To_NIFTI(dicom_path, nifti_path):
     # # ds.RadiopharmaceuticalInformationSequence[0].RadionuclideTotalDose (Injected dose)
     # # ds.PatientWeight (Patient weight)
 
-    ds = pydicom.dcmread(dicom_path)
-    seriesTime = ds.SeriesTime
-    injectionTime = ds.RadiopharmaceuticalInformationSequence[0].RadiopharmaceuticalStartTime
-    halfLife = ds.RadiopharmaceuticalInformationSequence[0].RadionuclideHalfLife
-    injectedDose = ds.RadiopharmaceuticalInformationSequence[0].RadionuclideTotalDose
-    patientWeight = ds.PatientWeight
-    rescaleSlope = ds.RescaleSlope
-    rescaleIntercept = ds.RescaleIntercept
+    # print("275 slope and intercept")
+    # print(slopes[223])
+    # print(intercepts[223])
+
 
     nifti_file = nib.load(nifti_path)
-    nifti_file.header['descrip'] = f"{seriesTime}x{injectionTime}x{halfLife}x{injectedDose}x{patientWeight}x{rescaleSlope}x{rescaleIntercept}"
+    nifti_file.header['descrip'] = f"{seriesTime}x{injectionTime}x{halfLife}x{injectedDose}x{patientWeight}"
 
     nib.save(nifti_file, nifti_path)
 
@@ -493,7 +533,7 @@ def dicom2nifti(home_dir, output_dir):
                     # print(dicom_path)
                     # print(nifti_path)
 
-                    move_DICOM_Metadata_To_NIFTI(dicom_path, nifti_path)
+                    move_DICOM_Metadata_To_NIFTI(dicom_path, nifti_path, scan_dir)
                     rename_PET_nifti(nifti_path)
                 else:
                     print(f"PET folder doesn't exist in {patient.name}")
@@ -546,8 +586,6 @@ def convert_raw_PET_to_SUV(pet_nifti):
     half_life = float(description[2])
     injected_dose = float(description[3])
     patient_weight = float(description[4])*1000
-    rescale_slope = float(description[5])
-    rescale_intercept = float(description[6])
 
     print("Series time ", series_time)
     print("injection time ", injection_time)
@@ -564,8 +602,23 @@ def convert_raw_PET_to_SUV(pet_nifti):
     SUV_factor = (patient_weight) / (injected_dose * decay_correction_factor)
 
     print("SUV_factor ", SUV_factor)
+    print("shape ", PET_data.shape)
+    print("raw value at pixel: ", PET_data[60, 70, 223])
 
-    return( ((PET_data*rescale_slope)+rescale_intercept) * SUV_factor).astype(np.float32)
+
+    folder_path = "/Users/williamlee/Documents/Example/31/PET/"
+    dicom_files = get_dicom_files_from_folder(folder_path)
+    if dicom_files:
+        voxel_data = extract_voxel_data(dicom_files)
+        print("Voxel data shape:", voxel_data.shape)
+    else:
+        print("No valid DICOM files found in the folder.")
+    print("raw value ", voxel_data[60, 70, 223])
+    
+
+
+    #return( ((PET_data*rescale_slope)+rescale_intercept) * SUV_factor).astype(np.float32)
+    return PET_data
 
 # Function that takes the path of NIFTIs, creates a reference to its DICOM for metadata, and returns a dictionary of SUV values for each PET NIFTI
 def extractSUVs(nifti_path):
