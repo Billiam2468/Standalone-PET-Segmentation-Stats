@@ -454,9 +454,11 @@ def move_DICOM_Metadata_To_NIFTI(dicom_path, nifti_path):
     halfLife = ds.RadiopharmaceuticalInformationSequence[0].RadionuclideHalfLife
     injectedDose = ds.RadiopharmaceuticalInformationSequence[0].RadionuclideTotalDose
     patientWeight = ds.PatientWeight
+    rescaleSlope = ds.RescaleSlope
+    rescaleIntercept = ds.RescaleIntercept
 
     nifti_file = nib.load(nifti_path)
-    nifti_file.header['descrip'] = f"{seriesTime}x{injectionTime}x{halfLife}x{injectedDose}x{patientWeight}"
+    nifti_file.header['descrip'] = f"{seriesTime}x{injectionTime}x{halfLife}x{injectedDose}x{patientWeight}x{rescaleSlope}x{rescaleIntercept}"
 
     nib.save(nifti_file, nifti_path)
 
@@ -544,6 +546,14 @@ def convert_raw_PET_to_SUV(pet_nifti):
     half_life = float(description[2])
     injected_dose = float(description[3])
     patient_weight = float(description[4])*1000
+    rescale_slope = float(description[5])
+    rescale_intercept = float(description[6])
+
+    print("Series time ", series_time)
+    print("injection time ", injection_time)
+    print("half_life ", half_life)
+    print("injected dose ", injected_dose)
+    print("patient weight ", patient_weight)
 
     time_diff = abs(calculate_time_difference(series_time, injection_time))
 
@@ -555,7 +565,7 @@ def convert_raw_PET_to_SUV(pet_nifti):
 
     print("SUV_factor ", SUV_factor)
 
-    return(PET_data * SUV_factor).astype(np.float32)
+    return( ((PET_data*rescale_slope)+rescale_intercept) * SUV_factor).astype(np.float32)
 
 # Function that takes the path of NIFTIs, creates a reference to its DICOM for metadata, and returns a dictionary of SUV values for each PET NIFTI
 def extractSUVs(nifti_path):
