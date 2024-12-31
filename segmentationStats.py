@@ -426,6 +426,9 @@ def more_optimized_suv_statistics(roi_data, pet_data, reference):
     suv_stats = {}
     for roi in unique_rois:
         suv_values = flat_pet_data[flat_roi_data == roi]
+        if(roi == 57):
+            print(suv_values.size)
+            print(suv_values)
         if suv_values.size > 0:
             suv_stats[reference[int(roi)]] = {
                 'mean': np.mean(suv_values),
@@ -664,7 +667,6 @@ def statistics_from_rois(segmentation_dir, SUV_vals, extension, rois, name_refer
 
                 # Remove extension
                 pet_name = segmentation.name.removesuffix(extension)
-
                 seg_dir = os.path.join(segmentation_dir, segmentation)
                 
 
@@ -770,8 +772,6 @@ def main():
     # csv_name = "test"
 
    
-
-
 if __name__ == "__main__":
     start_time = time.time()
     import multiprocessing
