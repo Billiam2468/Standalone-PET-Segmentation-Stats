@@ -419,6 +419,19 @@ def rename_PET_nifti(pet_nifti_path):
     shutil.move(pet_nifti_path, new_path)
     os.rmdir(os.path.dirname(pet_nifti_path))
 
+from pathlib import Path
+def get_full_extension(filename):
+    """
+    Detect the full extension of a file, even if it has multiple extensions (e.g., .nii.gz).
+
+    Args:
+        filename (str): The name of the file.
+
+    Returns:
+        str: The full extension of the file (e.g., '.nii.gz').
+    """
+    return ''.join(Path(filename).suffixes)
+
 # Takes the relevant metadata from the DICOM file including the directory it came from and moves it into the metadata of the NIFTI file
 def move_DICOM_Metadata_To_NIFTI(dicom_path, nifti_path, dicom_folder):
     ds = pydicom.dcmread(dicom_path)
@@ -589,7 +602,7 @@ def scroll_through_3d_array(arr, overlay_arr):
     # Show the plot with the slider
     plt.show()
 
-def statistics_from_rois(segmentation_dir, pet_dir, extension, name_reference):
+def statistics_from_rois(segmentation_dir, pet_dir, name_reference):
     stats = {}
     counter = 1
     with os.scandir(segmentation_dir) as segmentations:
@@ -605,9 +618,15 @@ def statistics_from_rois(segmentation_dir, pet_dir, extension, name_reference):
                 print(segmentation.name)
 
                 # Opening segmentation and corresponding PET NIFTI for resampling into PET resolution
-                pet_name = segmentation.name.removesuffix(extension)
+
+                # Remove extension ".nrrd" or ".nii.gz"
+                seg_extension = get_full_extension(segmentation.name)
+                pet_name = segmentation.name.removesuffix(seg_extension)
+
                 seg_dir = os.path.join(segmentation_dir, segmentation.name)
-                pet_dir = os.path.join(pet_dir, segmentation.name)
+
+                # No matter the segmentation extension, NIFIT extension will always be .nii.gz
+                pet_dir = os.path.join(pet_dir, pet_name + ".nii.gz")
                 segmentation = sitk.ReadImage(seg_dir)
                 pet = sitk.ReadImage(pet_dir)
                 resampler = sitk.ResampleImageFilter()
@@ -685,7 +704,7 @@ def main():
 
                 # Extract Stats
                 names = globals().get(task, None)
-                stats = statistics_from_rois(seg_dir, nifti_output_dir, ".nii.gz", name_reference=names)
+                stats = statistics_from_rois(seg_dir, nifti_output_dir, name_reference=names)
 
                 csv_path = os.path.join(csv_output_dir, csv_name+".csv")
                 save_to_csv(stats, csv_path)
