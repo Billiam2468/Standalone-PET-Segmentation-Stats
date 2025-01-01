@@ -378,8 +378,116 @@ def save_to_csv(data, filename):
             full_row = [row_dict.get(col, None) for col in header]
             writer.writerow(full_row)
 
-def more_optimized_suv_statistics(roi_data, pet_data, reference, pet_file):
-    print("in suv stats")
+def old_upscale_suv_values_3d(suv_values, new_shape):
+    # Calculate the zoom factors for each dimension
+    zoom_factors = [n / o for n, o in zip(new_shape, suv_values.shape)]
+    
+    # Perform the upscaling using ndimage.zoom
+    suv_interpolated = zoom(suv_values, zoom_factors, order=1)  # 'order=1' for linear interpolation
+    
+    return suv_interpolated.astype(np.float32)
+
+def upscale_pet_to_segmentation_with_voxel_spacing(pet_suv_vals, pet_shape, segmentation_shape, pet_spacing, segmentation_spacing):
+    """
+    Upscale PET suv values to match segmentation shape, accounting for both voxel spacing and shape differences.
+    """
+    # Calculate zoom factors for each dimension (x, y, z)
+    zoom_factors = [
+        (segmentation_shape[0] / pet_shape[0]) * (pet_spacing[0] / segmentation_spacing[0]),  # x dimension
+        (segmentation_shape[1] / pet_shape[1]) * (pet_spacing[1] / segmentation_spacing[1]),  # y dimension
+        (segmentation_shape[2] / pet_shape[2]) * (pet_spacing[2] / segmentation_spacing[2])   # z dimension
+    ]
+    
+    print(zoom_factors)
+
+    # Perform the upscaling using ndimage.zoom (order=1 for linear interpolation)
+    upscaled_pet = zoom(pet_suv_vals, zoom_factors, order=1)  # Linear interpolation
+    
+    return upscaled_pet.astype(np.float32)
+
+    print("shape of interp", upscaled_pet.shape)
+    
+    return upscaled_pet.astype(np.float32)
+
+def olde_upscale_suv_values_3d(suv_values, original_spacing, new_shape, new_spacing, interpolation_order=1):
+    print("values")
+    print(original_spacing)
+    print(new_shape)
+    print(new_spacing)
+    """
+    Upscale 3D SUV values (e.g., from a PET scan) to a new shape while accounting for voxel spacing.
+    
+    Parameters:
+    - suv_values (np.ndarray): Original 3D SUV array.
+    - original_spacing (tuple): Voxel spacing of the original array (e.g., (x_spacing, y_spacing, z_spacing)).
+    - new_shape (tuple): Desired shape of the upscaled array (e.g., (new_x, new_y, new_z)).
+    - new_spacing (tuple): Voxel spacing of the new array (e.g., (new_x_spacing, new_y_spacing, new_z_spacing)).
+    - interpolation_order (int): Interpolation order for upscaling (0 for nearest-neighbor, 1 for linear, etc.)
+    
+    Returns:
+    - np.ndarray: Upscaled SUV values.
+    """
+    # Calculate zoom factors based on the shape change
+    zoom_factors_shape = [n / o for n, o in zip(new_shape, suv_values.shape)]
+    
+    # Calculate zoom factors based on voxel spacing change
+    zoom_factors_spacing = [o / n for n, o in zip(original_spacing, new_spacing)]
+    
+    # Zoom factors for each axis should be calculated separately
+    zoom_factors = [f_shape * f_spacing for f_shape, f_spacing in zip(zoom_factors_shape, zoom_factors_spacing)]
+    
+    # Perform the upscaling using ndimage.zoom with the selected interpolation method
+    suv_interpolated = zoom(suv_values, zoom_factors, order=interpolation_order)  # Adjust interpolation method
+
+    print("shape of interpolated", suv_interpolated.shape)
+    
+    return suv_interpolated.astype(np.float32)
+
+
+import dicom_numpy
+
+def get_dicom_files_from_folder(folder_path):
+    """
+    Returns a list of paths to DICOM files in the given folder.
+    """
+    dicom_files = []
+    for file_name in os.listdir(folder_path):
+        file_path = os.path.join(folder_path, file_name)
+        if os.path.isfile(file_path):
+            try:
+                # Verify if the file is a valid DICOM file
+                pydicom.dcmread(file_path, stop_before_pixels=True)
+                dicom_files.append(file_path)
+            except pydicom.errors.InvalidDicomError:
+                # Skip non-DICOM files
+                continue
+    return dicom_files
+
+def extract_voxel_data(list_of_dicom_files):
+    datasets = [pydicom.read_file(f) for f in list_of_dicom_files]
+    try:
+        voxel_ndarray, ijk_to_xyz = dicom_numpy.combine_slices(datasets)
+    except dicom_numpy.DicomImportException as e:
+        # invalid DICOM data
+        raise
+    return voxel_ndarray
+
+def find_indices_in_array(A, B):
+    """
+    Given two arrays A and B, returns the 3D indices in B where the values are found in A.
+
+    Parameters:
+    - A (numpy.ndarray): Array containing values to search for.
+    - B (numpy.ndarray): 3D array in which to search for values of A.
+
+    Returns:
+    - list of tuples: Each tuple contains the (x, y, z) coordinates where the value in B is in A.
+    """
+    # Use np.isin to find where elements of B are in A
+    indices = np.where(np.isin(B, A))  # Returns a tuple of arrays with indices
+    return list(zip(*indices))  # Combine the indices into (x, y, z) tuples
+
+def more_optimized_suv_statistics(roi_data, pet_data, reference):
     # Flatten arrays for faster processing
     flat_roi_data = roi_data.ravel()
     flat_pet_data = pet_data.ravel()
@@ -392,18 +500,22 @@ def more_optimized_suv_statistics(roi_data, pet_data, reference, pet_file):
     # Unique ROI values
     unique_rois = np.unique(flat_roi_data)
     
-    SUV_factor = get_SUV_factor_from_PET_NIFTI(pet_file)
-
     suv_stats = {}
     for roi in unique_rois:
         suv_values = flat_pet_data[flat_roi_data == roi]
+        # if(roi == 57):
+        #     indices = np.where(roi_data == 57)  # Returns a tuple of arrays with indices
+        #     print(list(zip(*indices)))  # Combine the indices into (x, y, z) tuples
+        #     print(np.where(roi_data == 57))
+        #     print(suv_values.size)
+        #     print(pet_data[58, 61, 355])
+        #     indices = find_indices_in_array(suv_values, pet_data)
+        #     print(indices)
         if suv_values.size > 0:
             suv_stats[reference[int(roi)]] = {
-                'mean': np.mean(suv_values) * SUV_factor,
-                'max': np.max(suv_values) * SUV_factor,
-                'min': np.min(suv_values) * SUV_factor,
-                'std_dev': np.std(suv_values) * SUV_factor,
-                'median': np.median(suv_values) * SUV_factor,
+                'mean': np.mean(suv_values),
+                'max': np.max(suv_values),
+                'median': np.median(suv_values),
                 'num_val': suv_values.size,
             }
 
@@ -473,6 +585,12 @@ def dicom2nifti(home_dir, output_dir):
                 else:
                     print(f"PET folder doesn't exist in {patient.name}")
 
+def load_nifti_file(filepath):
+    """Load a NIfTI file and return the data array."""
+    nifti_img = nib.load(filepath)
+    data = nifti_img.get_fdata()
+    return data
+
 def calculate_time_difference(scan_time_str, injection_time_str):
     # Define the correct time format
     time_format_with_microseconds = "%H%M%S.%f"
@@ -502,11 +620,63 @@ def calculate_time_difference(scan_time_str, injection_time_str):
     #return 2400
     return total_seconds
 
-def get_SUV_factor_from_PET_NIFTI(pet_nifti):
+# Extracts the stored file directory in the NIFTI file header
+def retrieve_file_directory(pet_nifti):
+    nifti_file = nib.load(pet_nifti)
+    header = nifti_file.header
+     # Look for the directory path in custom extensions
+    for ext in header.extensions:
+        content = ext.get_content().decode('utf-8')  # Convert bytes back to string
+        if content.startswith("/"):  # Assuming directory paths start with '/'
+            return content
+
+
+def compare_arrays(arr1, arr2, tolerance=1e-2):
+    # Ensure arrays are of the same size
+    if arr1.shape != arr2.shape:
+        print("Arrays are of different sizes.")
+        return
+
+    # Compare element-wise with tolerance
+    comparison = np.isclose(arr1, arr2, atol=tolerance)
+
+    # Calculate the percentage of identical values
+    identical_count = np.sum(comparison)
+    total_elements = arr1.size
+    identical_percentage = (identical_count / total_elements) * 100
+
+    print(f"The arrays are {identical_percentage:.2f}% identical.")
+
+    # Show indexes and values where arrays don't match
+    mismatches = np.where(comparison == False)
+    if len(mismatches[0]) > 0:
+        print("Indexes where the arrays do not match (with tolerance):")
+        for idx in zip(*mismatches):  # Unpack the 3D indices
+            print(f"Index: {idx}, arr1 value: {arr1[idx]}, arr2 value: {arr2[idx]}")
+    else:
+        print("No mismatches found.")
+
+def convert_raw_PET_to_SUV(pet_nifti):
+    PET_data = None #load_nifti_file(pet_nifti)
+
     nifti_file = nib.load(pet_nifti)
     description = nifti_file.header['descrip'].tobytes().decode('ascii').split("x")
     description = [value.rstrip('\x00') for value in description]
-    #print(description)
+    print(description)
+
+    directory = retrieve_file_directory(pet_nifti)
+    print(directory)
+
+    dicom_files = get_dicom_files_from_folder(directory)
+    if dicom_files:
+        PET_data = extract_voxel_data(dicom_files)
+        print("PET data shape:", PET_data.shape)
+    else:
+        print("No valid DICOM files found in the folder.")
+
+
+    #aux_file = nifti_file.header['aux_file'].tobytes().decode('ascii')
+    #print(aux_file)
 
     series_time = description[0]
     injection_time = description[1]
@@ -529,13 +699,93 @@ def get_SUV_factor_from_PET_NIFTI(pet_nifti):
     SUV_factor = (patient_weight) / (injected_dose * decay_correction_factor)
 
     print("SUV_factor ", SUV_factor)
+    final = (PET_data * SUV_factor).astype(np.float32)
 
-    return SUV_factor
 
+    realData = load_nifti_file("/Users/williamlee/Desktop/realSUV.nii.gz")
+
+    compare_arrays(final, realData)
+
+    print(final[80, 80, 100])
+
+    return final
+
+# Function that takes the path of NIFTIs, creates a reference to its DICOM for metadata, and returns a dictionary of SUV values for each PET NIFTI
+def extractSUVs(nifti_path):
+    SUV_vals = {}
+    metadata = {}
+
+    with os.scandir(nifti_path) as entries:
+        for entry in entries:
+            nifti_dir = os.path.join(nifti_path, entry)
+            if entry.is_file():
+                # Ignore hidden files:
+                if entry.name[0] == ".":
+                    continue
+
+                fileName = entry.name.removesuffix(".nii.gz")
+
+                SUV_vals[fileName] = convert_raw_PET_to_SUV(nifti_dir)
+
+
+                #nifti_img = nib.load(nifti_dir)
+                nifti_img = sitk.ReadImage(nifti_dir)
+
+                print("this spacings", nifti_img.GetSpacing())
+                metadata[fileName] = {"spacing": nifti_img.GetSpacing(), "origin": nifti_img.GetOrigin(), "direction": nifti_img.GetDirection()}
+    return SUV_vals, metadata
 
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider
+
+# def visualize_slice(arr, slice_idx):
+#     """Visualizes a specific slice of the segmentation array."""
+#     fig, ax = plt.subplots(figsize=(8, 8))
+    
+#     # Show the 2D slice of the 3D array
+#     ax.imshow(arr[slice_idx, :, :], cmap='tab20', interpolation='nearest')
+    
+#     # Add title and labels
+#     ax.set_title(f'Slice {slice_idx}')
+#     ax.set_xlabel('X')
+#     ax.set_ylabel('Y')
+    
+#     plt.show()
+
+# def scroll_through_3d_array(arr):
+#     """Interactive slider to scroll through the slices of a 3D segmentation array."""
+    
+#     # Check if the array is 3D
+#     if arr.ndim != 3:
+#         raise ValueError("Input array must be 3D")
+
+#     # Initialize the index of the slice to show
+#     slice_idx = 0
+    
+#     # Create the initial plot to display a slice
+#     fig, ax = plt.subplots(figsize=(8, 8))
+    
+#     # Function to update the displayed slice
+#     def update(val):
+#         nonlocal slice_idx
+#         slice_idx = int(val)
+#         ax.clear()  # Clear the axis to update the slice
+#         ax.imshow(arr[slice_idx, :, :], cmap='tab20', interpolation='nearest')
+#         ax.set_title(f'Slice {slice_idx}')
+#         ax.set_xlabel('X')
+#         ax.set_ylabel('Y')
+#         fig.canvas.draw()
+
+#     # Create a slider to scroll through slices
+#     ax_slider = plt.axes([0.1, 0.01, 0.8, 0.03], facecolor='lightgoldenrodyellow')
+#     slider = Slider(ax_slider, 'Slice', 0, arr.shape[0]-1, valinit=0, valstep=1)
+#     slider.on_changed(update)
+    
+#     # Show the plot with the slider
+#     plt.show()
+
+
 
 def visualize_slice(arr, overlay_arr, slice_idx):
     """Visualizes a specific slice of the segmentation array with an overlay."""
@@ -590,37 +840,195 @@ def scroll_through_3d_array(arr, overlay_arr):
     plt.show()
 
 def statistics_from_rois(segmentation_dir, pet_dir, extension, name_reference):
+
     stats = {}
+
+    # #to_do = ['joints_10_FDG180.nrrd', 'joints_11_FDG180.nrrd', 'joints_37_FDG180.nrrd']
+
     counter = 1
+
     with os.scandir(segmentation_dir) as segmentations:
         for segmentation in segmentations:
             if segmentation.is_file():
                 # Ignore hidden files:
                 if segmentation.name[0] == ".":
                     continue
+                
                 num_segs = len(os.listdir(segmentation_dir))
 
-                # Progress counter for what segmentation is being worked on
                 print(f"Working on segmentation {counter} of {num_segs}")
                 print(segmentation.name)
 
-                # Opening segmentation and corresponding PET NIFTI for resampling into PET resolution
+                # Remove extension
                 pet_name = segmentation.name.removesuffix(extension)
+                
                 seg_dir = os.path.join(segmentation_dir, segmentation.name)
                 pet_dir = os.path.join(pet_dir, segmentation.name)
+
+                print("seg dir", seg_dir)
+                print("petdir", pet_dir)
+
+
                 segmentation = sitk.ReadImage(seg_dir)
                 pet = sitk.ReadImage(pet_dir)
+
+                
+
+                # Resample segmentation to PET scan resolution
                 resampler = sitk.ResampleImageFilter()
                 resampler.SetReferenceImage(pet)  # Use PET as reference for spacing and size
                 resampler.SetInterpolator(sitk.sitkNearestNeighbor)  # Use nearest neighbor for labels
                 resampled_segmentation = resampler.Execute(segmentation)
+
+                # Save the resampled segmentation
+                #sitk.WriteImage(resampled_segmentation, 'resampled_segmentation.nii.gz')
+
+
+
+
+                # #If files are nifti use below:
+                # segmentation_img = nib.load(seg_dir)
+                # segmentation_data = segmentation_img.get_fdata()
+                # segmentation_voxel_spacing = segmentation_img.header.get_zooms()
+                # print("seg voxel spacings, ", segmentation_voxel_spacing)
+
+
+
+                # # Load segmentation file
+                # segmentation = sitk.ReadImage(seg_dir)
+
+                # # Convert the numpy array to a SimpleITK image
+                # pet_image = sitk.GetImageFromArray(SUV_vals[pet_name])
+
+                # # Set metadata for the PET image (spacing, origin, direction)
+                # # You might need to replace these with the actual values
+                # pet_image.SetSpacing(metadata[pet_name]["spacing"])       # Use the same spacing as the segmentation
+                # pet_image.SetOrigin(metadata[pet_name]["origin"])         # Align origin with segmentation
+                # pet_image.SetDirection(metadata[pet_name]["direction"])   # Align direction with segmentation
+
+                # # Create a resampler
+                # resampler = sitk.ResampleImageFilter()
+                # resampler.SetReferenceImage(segmentation)  # Use the segmentation image as the reference
+                # resampler.SetInterpolator(sitk.sitkNearestNeighbor)  # Nearest neighbor for segmentation labels
+                # resampled_pet = resampler.Execute(pet_image)
+
+
+
+                # # Save the resampled segmentation
+                # sitk.WriteImage(resampled_pet, 'resampled_segmentation.nii.gz')
+
+                # Convert the resampled segmentation back to a numpy array
                 resampled_segmentation_array = sitk.GetArrayFromImage(resampled_segmentation)
+
                 pet_array = sitk.GetArrayFromImage(pet)
 
-                # Calculating statistics using resampled segmentation and PET arrays
-                stats[pet_name] = more_optimized_suv_statistics(roi_data=resampled_segmentation_array, pet_data=pet_array, reference=name_reference, pet_file=pet_dir)
+
+                # resampled_segmentation_array = np.transpose(resampled_segmentation_array, (2, 1, 0))  # Example swap
+
+
+
+
+                print("shape of resampled", resampled_segmentation_array.shape)
+                print("shape of pet", pet_array.shape)
+
+
+                # # Mirror SUV vals
+                # SUV_vals[pet_name] = SUV_vals[pet_name][:, ::-1, :]
+
+                
+
+                # # Upscale the PET SUV values to match the shape of the segmentation
+                # new_shape = (segmentation_data.shape[0], segmentation_data.shape[1], segmentation_data.shape[2])
+                # print("Shape of segmentation is: ", new_shape)
+                # print("pet_name is:", pet_name)
+                # print("Shape of PET suv_vals is: ", SUV_vals[pet_name].shape)
+
+                # # suv_values, segmentation_shape, pet_shape, pet_spacing, segmentation_spacing
+                # upscaled_suv_values = old_upscale_suv_values_3d(SUV_vals[pet_name], new_shape)
+                # #upscaled_suv_values = upscale_suv_values_3d(SUV_vals[pet_name], new_shape, SUV_vals[pet_name].shape, spacings[pet_name], segmentation_voxel_spacing) #spacings[pet_name], new_shape, )#upscale_suv_values_3d(SUV_vals[pet_name], new_shape)
+                # #upscaled_suv_values = upscale_pet_to_segmentation_with_voxel_spacing(SUV_vals[pet_name], SUV_vals[pet_name].shape, new_shape, spacings[pet_name], segmentation_voxel_spacing)
+                # print("finished upscaling")
+
+                # downscaled_seg = old_upscale_suv_values_3d(segmentation_data, SUV_vals[pet_name].shape)
+
+                #scroll_through_3d_array(resampled_segmentation_array, pet_array)
+                #scroll_through_3d_array(res, pet_array)
+                stats[pet_name] = more_optimized_suv_statistics(roi_data=resampled_segmentation_array, pet_data=pet_array, reference=name_reference)
 
                 del resampled_segmentation_array, pet_array
+                gc.collect()
+                counter = counter + 1
+    return stats
+
+def old_statistics_from_rois(segmentation_dir, SUV_vals, spacings, extension, rois, name_reference):
+    stats = {}
+
+    # #to_do = ['joints_10_FDG180.nrrd', 'joints_11_FDG180.nrrd', 'joints_37_FDG180.nrrd']
+
+    counter = 1
+
+    with os.scandir(segmentation_dir) as segmentations:
+        for segmentation in segmentations:
+            if segmentation.is_file():
+                # Ignore hidden files:
+                if segmentation.name[0] == ".":
+                    continue
+                
+                num_segs = len(os.listdir(segmentation_dir))
+
+                print(f"Working on segmentation {counter} of {num_segs}")
+                print(segmentation.name)
+
+                # Remove extension
+                pet_name = segmentation.name.removesuffix(extension)
+                seg_dir = os.path.join(segmentation_dir, segmentation)
+                
+
+                #If files are nifti use below:
+                segmentation_img = nib.load(seg_dir)
+                segmentation_data = segmentation_img.get_fdata()
+                segmentation_voxel_spacing = segmentation_img.header.get_zooms()
+                print("seg voxel spacings, ", segmentation_voxel_spacing)
+                #segmentation_data = segmentation_data[:, ::-1, :]
+
+                # Mirror SUV vals
+                SUV_vals[pet_name] = SUV_vals[pet_name][:, ::-1, :]
+
+                
+
+                # Upscale the PET SUV values to match the shape of the segmentation
+                new_shape = (segmentation_data.shape[0], segmentation_data.shape[1], segmentation_data.shape[2])
+                print("Shape of segmentation is: ", new_shape)
+                print("pet_name is:", pet_name)
+                print("Shape of PET suv_vals is: ", SUV_vals[pet_name].shape)
+
+                # suv_values, segmentation_shape, pet_shape, pet_spacing, segmentation_spacing
+                upscaled_suv_values = old_upscale_suv_values_3d(SUV_vals[pet_name], new_shape)
+                #upscaled_suv_values = upscale_suv_values_3d(SUV_vals[pet_name], new_shape, SUV_vals[pet_name].shape, spacings[pet_name], segmentation_voxel_spacing) #spacings[pet_name], new_shape, )#upscale_suv_values_3d(SUV_vals[pet_name], new_shape)
+                #upscaled_suv_values = upscale_pet_to_segmentation_with_voxel_spacing(SUV_vals[pet_name], SUV_vals[pet_name].shape, new_shape, spacings[pet_name], segmentation_voxel_spacing)
+                print("finished upscaling")
+
+                downscaled_seg = old_upscale_suv_values_3d(segmentation_data, SUV_vals[pet_name].shape)
+
+                scroll_through_3d_array(downscaled_seg, SUV_vals[pet_name])
+
+                # from radiomics import featureextractor
+
+                # # Initialize the extractor
+                # extractor = featureextractor.RadiomicsFeatureExtractor()
+
+                # # Extract features
+                # result = extractor.execute('pet_suv.nii.gz', seg_dir)
+
+                # # Print extracted statistics
+                # for feature_name, feature_value in result.items():
+                #     print(f"{feature_name}: {feature_value}")
+
+
+                #downscaled_seg = upscale_suv_values_3d(segmentation_data, SUV_vals[pet_name].shape)
+
+                stats[pet_name] = more_optimized_suv_statistics(roi_data=segmentation_data, pet_data=upscaled_suv_values, reference=name_reference)
+                del segmentation_data, upscaled_suv_values
                 gc.collect()
                 counter = counter + 1
     return stats
@@ -684,7 +1092,14 @@ def main():
                 dicom2nifti(home_dir, nifti_output_dir)
 
                 # Extract Stats
+
+                SUV_vals, metadata = extractSUVs(nifti_output_dir)
                 names = globals().get(task, None)
+                rois = list(range(1,len(names)+1))
+
+                print("directories:")
+                print(seg_dir)
+                print(nifti_output_dir)
                 stats = statistics_from_rois(seg_dir, nifti_output_dir, ".nii.gz", name_reference=names)
 
                 csv_path = os.path.join(csv_output_dir, csv_name+".csv")
