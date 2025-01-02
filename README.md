@@ -44,7 +44,7 @@ Ensure the database matches the directory structure outlined above.
 - **Step 2a**: Select the task (structures to segment).  
   - Full list of tasks: [TotalSegmentator Subtasks](https://github.com/wasserth/TotalSegmentator#subtasks).  
 - **Step 2b**: Select the **Home Directory** (organized scan database).  
-- **Step 2c**: Select the **Output Directory** (should be an empty folder for the segmentation files).  
+- **Step 2c**: Select the **Segmentation Output Directory** (should be an empty folder for the segmentation files).  
 - **Step 2d**: Choose Low Resolution (optional):  
   - For faster preliminary data, select **low resolution** segmentation.  
 
