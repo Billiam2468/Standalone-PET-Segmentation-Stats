@@ -65,9 +65,11 @@ Ensure the database matches the directory structure outlined above.
 ---
 
 ## **NOTES**
+- Due to using PyInstaller, opening the script can take some time.
+- When you first open the script, will be prompted to create a PySimpleGUI account. Create a free account (Hobbyist account) and copy and paste the license key.
 - If you lack a dedicated GPU, the process may run much slower.  
-- Large datasets may take considerable time (e.g., over 100 hours).  
-- If the script appears unresponsive, it is likely still running. Check the terminal window for updates.  
-- For questions or bug reports, contact me directly.  
+- Large datasets (size of image or number of files) may take considerable time to segment (e.g., over 100 hours).  
+- If the script appears unresponsive, it is likely still running. Check the terminal window that opens for updates.  
+- For questions or bug reports, contact me directly with a screenshot of the terminal window if the program crashed.
 
 ---
