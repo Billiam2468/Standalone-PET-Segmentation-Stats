@@ -1,3 +1,5 @@
+# Using this for the Melanoma dataset
+
 import nibabel as nib
 import dicom2nifti as d2n
 import os
@@ -139,34 +141,6 @@ total = [
     "rib_right_12",
     "sternum",
     "costal_cartilages"
-]
-
-total_seg_joint_names = [
-    "background",
-    'vertebrae_L5-vertebrae_S1',
-    'vertebrae_L4-vertebrae_L5',
-    'vertebrae_L3-vertebrae_L4',
-    'vertebrae_L2-vertebrae_L3',
-    'vertebrae_L1-vertebrae_L2',
-    'vertebrae_T12-vertebrae_L1',
-    'vertebrae_T11-vertebrae_T12',
-    'vertebrae_T10-vertebrae_T11',
-    'vertebrae_T9-vertebrae_T10',
-    'vertebrae_T8-vertebrae_T9',
-    'vertebrae_T7-vertebrae_T8',
-    'vertebrae_T6-vertebrae_T7',
-    'vertebrae_T5-vertebrae_T6',
-    'vertebrae_T4-vertebrae_T5',
-    'vertebrae_T3-vertebrae_T4',
-    'vertebrae_T2-vertebrae_T3',
-    'vertebrae_T1-vertebrae_T2',
-    'vertebrae_C7-vertebrae_T1',
-    'vertebrae_C6-vertebrae_C7',
-    'vertebrae_C5-vertebrae_C6',
-    'vertebrae_C4-vertebrae_C5',
-    'vertebrae_C3-vertebrae_C4',
-    'vertebrae_C2-vertebrae_C3',
-    'vertebrae_C1-vertebrae_C2'
 ]
 
 lung_vessels = [
@@ -462,40 +436,13 @@ def get_full_extension(filename):
 
 # Takes the relevant metadata from the DICOM file including the directory it came from and moves it into the metadata of the NIFTI file
 def move_DICOM_Metadata_To_NIFTI(dicom_path, nifti_path, dicom_folder):
-    # ds = pydicom.dcmread(dicom_path)
-    # seriesTime = ds.SeriesTime
-    # injectionTime = ds.RadiopharmaceuticalInformationSequence[0].RadiopharmaceuticalStartTime
-    # halfLife = ds.RadiopharmaceuticalInformationSequence[0].RadionuclideHalfLife
-    # injectedDose = ds.RadiopharmaceuticalInformationSequence[0].RadionuclideTotalDose
-    # patientWeight = ds.PatientWeight
-    # Adding a try-except block in cases where some metadata isn't available
-    try:
-        ds = pydicom.dcmread(dicom_path)
-        seriesTime = ds.SeriesTime if hasattr(ds, "SeriesTime") else "N/A"
-        injectionTime = (
-            ds.RadiopharmaceuticalInformationSequence[0].RadiopharmaceuticalStartTime
-            if hasattr(ds, "RadiopharmaceuticalInformationSequence") and len(ds.RadiopharmaceuticalInformationSequence) > 0
-            else "N/A"
-        )
-        halfLife = (
-            ds.RadiopharmaceuticalInformationSequence[0].RadionuclideHalfLife
-            if hasattr(ds, "RadiopharmaceuticalInformationSequence") and len(ds.RadiopharmaceuticalInformationSequence) > 0
-            else "N/A"
-        )
-        injectedDose = (
-            ds.RadiopharmaceuticalInformationSequence[0].RadionuclideTotalDose
-            if hasattr(ds, "RadiopharmaceuticalInformationSequence") and len(ds.RadiopharmaceuticalInformationSequence) > 0
-            else "N/A"
-        )
-        patientWeight = ds.PatientWeight if hasattr(ds, "PatientWeight") else "N/A"
-    except Exception as e:
-        # Placeholder values if an error occurs
-        print(f"Error reading DICOM metadata. Some metadata wasn't available in the PET: {e}")
-        seriesTime = "N/A"
-        injectionTime = "N/A"
-        halfLife = "N/A"
-        injectedDose = "N/A"
-        patientWeight = "N/A"
+    ds = pydicom.dcmread(dicom_path)
+    seriesTime = ds.SeriesTime
+    injectionTime = ds.RadiopharmaceuticalInformationSequence[0].RadiopharmaceuticalStartTime
+    halfLife = ds.RadiopharmaceuticalInformationSequence[0].RadionuclideHalfLife
+    injectedDose = ds.RadiopharmaceuticalInformationSequence[0].RadionuclideTotalDose
+    patientWeight = ds.PatientWeight
+    numSlices = ds.NumberOfSlices
 
     nifti_file = nib.load(nifti_path)
 
@@ -508,39 +455,42 @@ def move_DICOM_Metadata_To_NIFTI(dicom_path, nifti_path, dicom_folder):
 def dicom2nifti(home_dir, output_dir):
     with os.scandir(home_dir) as patients:
         for patient in patients:
-            print(f"Generating NIFTI for patient {patient.name}")
             if patient.is_dir():
-                scan_dir = os.path.join(home_dir, patient, "AC")
-                if os.path.exists(scan_dir) and os.listdir(scan_dir):
-                    save_dir = os.path.join(output_dir, patient.name)
-                    os.makedirs(save_dir, exist_ok=True)
-                    d2n.convert_directory(scan_dir, save_dir)
+                patient_dir = os.path.join(home_dir, patient)
+                with os.scandir(patient_dir) as dates:
+                    for date in dates:
+                        name = patient.name + "-" + date.name
+                        scan_dir = os.path.join(home_dir, patient, date, "PET_SUV_(20)_120_MIN")
+                        if os.path.exists(scan_dir):
+                            save_dir = os.path.join(output_dir, name)
+                            os.makedirs(save_dir, exist_ok=True)
+                            d2n.convert_directory(scan_dir, save_dir)
 
-                    dicom_file = None
-                    for file in os.listdir(scan_dir):
-                        if file.startswith("."):
-                            continue
+                            dicom_file = None
+                            for file in os.listdir(scan_dir):
+                                if file.startswith("."):
+                                    continue
+                                else:
+                                    dicom_file = file
+                                    break
+                            dicom_path = os.path.join(scan_dir, dicom_file)
+
+                            nifti_file = None
+                            for file in os.listdir(save_dir):
+                                if file.startswith("."):
+                                    continue
+                                else:
+                                    nifti_file = file
+                                    break
+                            nifti_path = os.path.join(save_dir, nifti_file)
+
+                            # print(dicom_path)
+                            # print(nifti_path)
+
+                            move_DICOM_Metadata_To_NIFTI(dicom_path, nifti_path, scan_dir)
+                            rename_PET_nifti(nifti_path)
                         else:
-                            dicom_file = file
-                            break
-                    dicom_path = os.path.join(scan_dir, dicom_file)
-
-                    nifti_file = None
-                    for file in os.listdir(save_dir):
-                        if file.startswith("."):
-                            continue
-                        else:
-                            nifti_file = file
-                            break
-                    nifti_path = os.path.join(save_dir, nifti_file)
-
-                    # print(dicom_path)
-                    # print(nifti_path)
-
-                    move_DICOM_Metadata_To_NIFTI(dicom_path, nifti_path, scan_dir)
-                    rename_PET_nifti(nifti_path)
-                else:
-                    print(f"PET folder doesn't exist in {patient.name}")
+                            print(f"PET folder doesn't exist in {name}")
 
 def calculate_time_difference(scan_time_str, injection_time_str):
     # Define the correct time format
@@ -677,19 +627,11 @@ def statistics_from_rois(segmentation_dir, pet_dir, name_reference):
 
                 # Remove extension ".nrrd" or ".nii.gz"
                 seg_extension = get_full_extension(segmentation.name)
-
-                # If segmentations already made with different naming conventions, have to get the right PET name
                 pet_name = segmentation.name.removesuffix(seg_extension)
-                pet_name = pet_name.removeprefix("joints_")
-                pet_name = pet_name.removesuffix("_FLU90")
 
                 seg_dir = os.path.join(segmentation_dir, segmentation.name)
 
-
-
                 # No matter the segmentation extension, NIFTI extension will always be .nii.gz
-
-                # Maybe add a check here to skip this one if the pet file doesnt exist
                 pet_file = os.path.join(pet_dir, pet_name + ".nii.gz")
                 segmentation = sitk.ReadImage(seg_dir)
                 pet = sitk.ReadImage(pet_file)
@@ -710,7 +652,6 @@ def statistics_from_rois(segmentation_dir, pet_dir, name_reference):
 
 tasks = [
     "total",
-    "total_seg_joint_names",
     "lung_vessels",
     "body",
     "cerebral_bleed",
@@ -765,7 +706,7 @@ def main():
                 continue
             try:
                  # Convert PET DICOMs to NIFTIs
-                dicom2nifti(home_dir, nifti_output_dir)
+                #dicom2nifti(home_dir, nifti_output_dir)
 
                 # Extract Stats
                 names = globals().get(task, None)
