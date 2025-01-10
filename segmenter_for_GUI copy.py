@@ -30,24 +30,28 @@ def main(tasks):
                 with os.scandir(home_dir) as patients:
                     for patient in patients:
                         if patient.is_dir():
-                            
-                            scan_dir = os.path.join(home_dir, patient.name, "CT")
-                            seg_name = patient.name + ".nii.gz"
-                            output_path = os.path.join(output_dir, seg_name)
-                            
-                            #segment(DICOM=scan_dir, output_dir=output_dir, segmentName=seg_name, task=task, fast=fast)
+                            patient_dir = os.path.join(home_dir, patient.name)
+                            with os.scandir(patient_dir) as dates:
+                                for date in dates:
+                                    if date.is_dir():
+                                        scan_dir = os.path.join(patient_dir, date, "CT_SOFT_BS_512x512")
+                                        #scan_dir = os.path.join(home_dir, patient.name, "CT")
+                                        seg_name = patient.name + "-" + date.name + ".nii.gz"
+                                        output_path = os.path.join(output_dir, seg_name)
+                                        
+                                        #segment(DICOM=scan_dir, output_dir=output_dir, segmentName=seg_name, task=task, fast=fast)
 
 
-                            totalsegmentator(
-                                scan_dir,
-                                output_path,
-                                ml=True,
-                                fast=fast,
-                                task=task,
-                                force_split=True,
-                                device="gpu",
-                                license_number="aca_8A7ZF34MCHLWKN"
-                            )
+                                        totalsegmentator(
+                                            scan_dir,
+                                            output_path,
+                                            ml=True,
+                                            fast=fast,
+                                            task=task,
+                                            force_split=True,
+                                            device="gpu",
+                                            license_number="aca_8A7ZF34MCHLWKN"
+                                        )
                 sg.popup("Segmentation(s) completed successfully!")
             except Exception as e:
                 sg.popup_error(f"An error occurred: {e}")

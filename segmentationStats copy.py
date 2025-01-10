@@ -460,7 +460,7 @@ def dicom2nifti(home_dir, output_dir):
                 with os.scandir(patient_dir) as dates:
                     for date in dates:
                         name = patient.name + "-" + date.name
-                        scan_dir = os.path.join(home_dir, patient, date, "PET_SUV_(20)_120_MIN")
+                        scan_dir = os.path.join(home_dir, patient, date, "SUV_P8ctQF_YGA_40_60_2.3IT_4it_PSFoff")
                         if os.path.exists(scan_dir):
                             save_dir = os.path.join(output_dir, name)
                             os.makedirs(save_dir, exist_ok=True)
@@ -518,8 +518,8 @@ def calculate_time_difference(scan_time_str, injection_time_str):
     total_seconds = time_difference.total_seconds()
 
     # We are using 40 minutes for dynamic scans. Will see how it affects values
-    #return 2400
-    return total_seconds
+    return 2400
+    #return total_seconds
 
 def get_SUV_factor_from_PET_NIFTI(pet_nifti):
     nifti_file = nib.load(pet_nifti)
@@ -705,8 +705,8 @@ def main():
                 sg.popup_error("All fields must be filled out!")
                 continue
             try:
-                 # Convert PET DICOMs to NIFTIs
-                #dicom2nifti(home_dir, nifti_output_dir)
+                # Convert PET DICOMs to NIFTIs
+                dicom2nifti(home_dir, nifti_output_dir)
 
                 # Extract Stats
                 names = globals().get(task, None)
