@@ -681,7 +681,7 @@ def statistics_from_rois(segmentation_dir, pet_dir, name_reference):
                 # If segmentations already made with different naming conventions, have to get the right PET name
                 pet_name = segmentation.name.removesuffix(seg_extension)
                 # pet_name = pet_name.removeprefix("joints_")
-                # pet_name = pet_name.removesuffix("_FLU90")
+                # pet_name = pet_name.removesuffix("_FLU90UE")
 
                 seg_dir = os.path.join(segmentation_dir, segmentation.name)
 
@@ -765,6 +765,9 @@ def main():
                 continue
             try:
                  # Convert PET DICOMs to NIFTIs
+
+                # Need a check box here. If the user has run this part already theres no need to generate NIFTIs again. Make it conditional. Or add a check?
+                
                 dicom2nifti(home_dir, nifti_output_dir)
 
                 # Extract Stats
