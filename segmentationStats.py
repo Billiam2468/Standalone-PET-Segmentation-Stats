@@ -509,6 +509,13 @@ def dicom2nifti(home_dir, output_dir):
     with os.scandir(home_dir) as patients:
         for patient in patients:
             print(f"Generating NIFTI for patient {patient.name}")
+
+            # Checking if NIFTI exists already:
+            file_check = os.path.join(output_dir, f"{patient.name}.nii.gz")
+            if os.path.exists(file_check):
+                print(f"NIFTI for {patient.name} exists already. Skipping.")
+                continue
+
             if patient.is_dir():
                 scan_dir = os.path.join(home_dir, patient, "PET")
                 if os.path.exists(scan_dir) and os.listdir(scan_dir):
