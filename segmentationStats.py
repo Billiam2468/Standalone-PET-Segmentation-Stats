@@ -510,7 +510,7 @@ def dicom2nifti(home_dir, output_dir):
         for patient in patients:
             print(f"Generating NIFTI for patient {patient.name}")
             if patient.is_dir():
-                scan_dir = os.path.join(home_dir, patient, "AC")
+                scan_dir = os.path.join(home_dir, patient, "PET")
                 if os.path.exists(scan_dir) and os.listdir(scan_dir):
                     save_dir = os.path.join(output_dir, patient.name)
                     os.makedirs(save_dir, exist_ok=True)
@@ -742,6 +742,7 @@ def main():
         [sg.Text("Task:"), sg.Combo(tasks, default_value="total", key="TASK")],
         [sg.Text("CSV Output Directory:"), sg.Input(key="CSV_OUTPUT_DIR"), sg.FolderBrowse()],
         [sg.Text("CSV Output Name:"), sg.Input(key="TEXT_INPUT", size=(40, 1))],
+        [sg.Text("Please provide credit to: TotalSegmentator (https://github.com/wasserth/TotalSegmentator) and William Lee (Drexel COM)", font=("Helvetica", 8))],
         [sg.Button("Run"), sg.Button("Exit")]
     ]
 
@@ -768,7 +769,7 @@ def main():
 
                 # Need a check box here. If the user has run this part already theres no need to generate NIFTIs again. Make it conditional. Or add a check?
                 
-                #dicom2nifti(home_dir, nifti_output_dir)
+                dicom2nifti(home_dir, nifti_output_dir)
 
                 # Extract Stats
                 names = globals().get(task, None)
