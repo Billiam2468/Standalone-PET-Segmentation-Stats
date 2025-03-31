@@ -126,7 +126,6 @@ total = [
     "costal_cartilages"
 ]
 
-
 class ScrollableSlices:
     def __init__(self, ct_array, seg_array):
         self.ct_array = ct_array
