@@ -457,10 +457,12 @@ def more_optimized_suv_statistics(roi_data, pet_data, reference, pet_file):
     return suv_stats
 
 def calculate_HU_stats(seg_dir, reference, pet_file):
+    print("in calc HU stats")
 
     SUV_factor, dicom_folder = get_SUV_factor_from_PET_NIFTI(pet_file)
-    dicom_folder = dicom_folder.replace("PET", "CT")
-
+    #dicom_folder = dicom_folder.replace("PET", "CT")
+    # For CAMONA dataset use this since STANDARD is CT and AC is PET
+    dicom_folder = dicom_folder.replace("AC", "STANDARD")
     # Resample segmentation to CT (to ensure alignment)
     segmentation = sitk.ReadImage(seg_dir)
     #pet = sitk.ReadImage(pet_file)
@@ -614,7 +616,8 @@ def dicom2nifti(home_dir, output_dir):
                 continue
 
             if patient.is_dir():
-                scan_dir = os.path.join(home_dir, patient, "PET")
+                # FOR CAMONA CHANGE THIS TO AC. ALL OTHERS USE PET
+                scan_dir = os.path.join(home_dir, patient, "AC")
                 if os.path.exists(scan_dir) and os.listdir(scan_dir):
                     save_dir = os.path.join(output_dir, patient.name)
                     os.makedirs(save_dir, exist_ok=True)
@@ -797,6 +800,7 @@ def statistics_from_rois(segmentation_dir, pet_dir, name_reference):
                 pet_name = segmentation.name.removesuffix(seg_extension)
                 # pet_name = pet_name.removeprefix("joints_")
                 pet_name = pet_name.removesuffix("_FDG180")
+                #pet_name = pet_name.removesuffix("_FLU90")
 
                 seg_dir = os.path.join(segmentation_dir, segmentation.name)
 
