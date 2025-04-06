@@ -858,6 +858,7 @@ def main():
     # GUI
     layout = [
         [sg.Text("Home Directory:"), sg.Input(key="HOME_DIR"), sg.FolderBrowse()],
+        [sg.Text("Date folders inside patient folders:"), sg.Checkbox("", default=False, key="DATE")],
         [sg.Text("Segmentation Directory:"), sg.Input(key="SEGMENTATION_DIR"), sg.FolderBrowse()],
         [sg.Text("PET NIFTI Output Directory:"), sg.Input(key="NIFTI_OUTPUT_DIR"), sg.FolderBrowse()],
         [sg.Text("Task:"), sg.Combo(tasks, default_value="total", key="TASK")],
@@ -876,6 +877,9 @@ def main():
         elif event == "Run":
             
             home_dir = values["HOME_DIR"]
+
+            date_present = values["DATE"]
+
             seg_dir = values["SEGMENTATION_DIR"]
             nifti_output_dir = values["NIFTI_OUTPUT_DIR"]
             csv_output_dir = values["CSV_OUTPUT_DIR"]
