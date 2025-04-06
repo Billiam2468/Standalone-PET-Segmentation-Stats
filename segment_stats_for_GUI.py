@@ -818,9 +818,10 @@ def statistics_from_rois(segmentation_dir, pet_dir, name_reference):
                 pet_array = sitk.GetArrayFromImage(pet)
                 
 
-                # Calculating statistics using resampled segmentation and PET arrays
+                # Calculating SUV statistics using resampled segmentation and PET arrays
                 stats[pet_name] = more_optimized_suv_statistics(roi_data=resampled_segmentation_array, pet_data=pet_array, reference=name_reference, pet_file=pet_file)
 
+                # Calculating HU statistiscs 
                 HU_stats[pet_name] = calculate_HU_stats(seg_dir, name_reference, pet_file)
 
                 del resampled_segmentation_array, pet_array
