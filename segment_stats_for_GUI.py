@@ -798,8 +798,8 @@ def statistics_from_rois(segmentation_dir, pet_dir, name_reference):
                 # Uncomment this for joints
                 pet_name = pet_name.removeprefix("joints_")
                 
-                #pet_name = pet_name.removesuffix("_FLU90")
-                pet_name = pet_name.removesuffix("_FDG180")
+                pet_name = pet_name.removesuffix("_FLU90")
+                #pet_name = pet_name.removesuffix("_FDG180")
 
                 seg_dir = os.path.join(segmentation_dir, segmentation.name)
 
