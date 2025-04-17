@@ -799,7 +799,7 @@ def statistics_from_rois(segmentation_dir, pet_dir, name_reference):
                 # If segmentations already made with different naming conventions, have to get the right PET name
                 pet_name = segmentation.name.removesuffix(seg_extension)
                 # pet_name = pet_name.removeprefix("joints_")
-                pet_name = pet_name.removesuffix("_FDG180")
+                #pet_name = pet_name.removesuffix("_FDG180")
                 #pet_name = pet_name.removesuffix("_FLU90")
 
                 seg_dir = os.path.join(segmentation_dir, segmentation.name)
@@ -858,7 +858,7 @@ def main():
     # GUI
     layout = [
         [sg.Text("Home Directory:"), sg.Input(key="HOME_DIR"), sg.FolderBrowse()],
-        [sg.Text("Date folders inside patient folders:"), sg.Checkbox("", default=False, key="DATE")],
+        #[sg.Text("Date folders inside patient folders:"), sg.Checkbox("", default=False, key="DATE")],
         [sg.Text("Segmentation Directory:"), sg.Input(key="SEGMENTATION_DIR"), sg.FolderBrowse()],
         [sg.Text("PET NIFTI Output Directory:"), sg.Input(key="NIFTI_OUTPUT_DIR"), sg.FolderBrowse()],
         [sg.Text("Task:"), sg.Combo(tasks, default_value="total", key="TASK")],
