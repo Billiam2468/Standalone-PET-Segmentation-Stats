@@ -141,7 +141,7 @@ total = [
     "costal_cartilages"
 ]
 
-total_seg_vertebrae_joints = [
+total_seg_joint_names = [
     "background",
     'vertebrae_L5-vertebrae_S1',
     'vertebrae_L4-vertebrae_L5',
@@ -167,20 +167,6 @@ total_seg_vertebrae_joints = [
     'vertebrae_C3-vertebrae_C4',
     'vertebrae_C2-vertebrae_C3',
     'vertebrae_C1-vertebrae_C2'
-]
-
-total_seg_hip_si_joints = [
-    "background",
-    "left hip",
-    "right hip",
-    "left SI",
-    "right SI"
-]
-
-moose_knee_joints = [
-    "background",
-    "left knee",
-    "right knee"
 ]
 
 lung_vessels = [
@@ -490,15 +476,6 @@ def calculate_HU_stats(seg_dir, reference, pet_file):
     roi_data = sitk.GetArrayFromImage(resampled_segmentation)
     ct_data = sitk.GetArrayFromImage(dicom_image)
 
-
-    # Get voxel spacing:
-    dicom_file = next((f for f in os.listdir(dicom_folder) if f.endswith('.dcm')), None)
-    print(dicom_file)
-    ds = pydicom.dcmread(os.path.join(dicom_folder, dicom_file))
-    slice_thickness = ds.SliceThickness
-    pixel_spacing = ds.PixelSpacing
-    voxel_volume = pixel_spacing[0] * pixel_spacing[1] * slice_thickness
-
     # Flatten arrays for faster processing
     flat_roi_data = roi_data.ravel()
     flat_ct_data = ct_data.ravel()
@@ -514,21 +491,49 @@ def calculate_HU_stats(seg_dir, reference, pet_file):
     HU_stats = {}
     for roi in unique_rois:
         HU_values = flat_ct_data[flat_roi_data == roi]
-
         if HU_values.size > 0:
-
-            volume = HU_values.size * voxel_volume
-
             HU_stats[reference[int(roi)]] = {
                 'HU_mean': np.mean(HU_values),
                 'HU_max': np.max(HU_values),
                 'HU_min': np.min(HU_values),
                 'HU_std_dev': np.std(HU_values),
                 'HU_median': np.median(HU_values),
-                'volume (mm^3)': volume,
+                'num_val': HU_values.size,
             }
 
     return HU_stats
+
+    # print(roi_data.shape)
+    # print(ct_data.shape)
+    # # Flatten arrays for faster processing
+    # flat_roi_data = roi_data.ravel()
+    # flat_pet_data = ct_data.ravel()
+
+    # # Filter out background
+    # mask = flat_roi_data > 0
+    # flat_roi_data = flat_roi_data[mask]
+    # flat_pet_data = flat_pet_data[mask]
+
+    # # Unique ROI values
+    # unique_rois = np.unique(flat_roi_data)
+
+    # HU_stats = {}
+    # for roi in unique_rois:
+    #     HU_values = flat_pet_data[flat_roi_data == roi]
+
+    #     #suv_values = suv_values * slope + intercept
+
+    #     if HU_values.size > 0:
+    #         HU_stats[reference[int(roi)]] = {
+    #             'mean': np.mean(HU_values),
+    #             'max': np.max(HU_values),
+    #             'min': np.min(HU_values),
+    #             'std_dev': np.std(HU_values),
+    #             'median': np.median(HU_values),
+    #             'num_val': HU_values.size,
+    #         }
+
+    # return HU_stats
 
 def rename_PET_nifti(pet_nifti_path):
     parent_folder = os.path.basename(os.path.dirname(pet_nifti_path))
@@ -795,7 +800,7 @@ def statistics_from_rois(segmentation_dir, pet_dir, name_reference):
                 pet_name = segmentation.name.removesuffix(seg_extension)
                 # pet_name = pet_name.removeprefix("joints_")
                 #pet_name = pet_name.removesuffix("_FDG180")
-                #pet_name = pet_name.removesuffix("_FLU90")
+                pet_name = pet_name.removesuffix("_FLU90")
 
                 seg_dir = os.path.join(segmentation_dir, segmentation.name)
 
@@ -826,9 +831,7 @@ def statistics_from_rois(segmentation_dir, pet_dir, name_reference):
 
 tasks = [
     "total",
-    "total_seg_vertebrae_joints",
-    "total_seg_hip_si_joints",
-    "moose_knee_joints",
+    "total_seg_joint_names",
     "lung_vessels",
     "body",
     "cerebral_bleed",
@@ -855,7 +858,7 @@ def main():
     # GUI
     layout = [
         [sg.Text("Home Directory:"), sg.Input(key="HOME_DIR"), sg.FolderBrowse()],
-        [sg.Text("Date folders inside patient folders:"), sg.Checkbox("", default=False, key="DATE")],
+        #[sg.Text("Date folders inside patient folders:"), sg.Checkbox("", default=False, key="DATE")],
         [sg.Text("Segmentation Directory:"), sg.Input(key="SEGMENTATION_DIR"), sg.FolderBrowse()],
         [sg.Text("PET NIFTI Output Directory:"), sg.Input(key="NIFTI_OUTPUT_DIR"), sg.FolderBrowse()],
         [sg.Text("Task:"), sg.Combo(tasks, default_value="total", key="TASK")],
@@ -875,13 +878,19 @@ def main():
             
             home_dir = values["HOME_DIR"]
 
-            # date_present = values["DATE"]
+            #date_present = values["DATE"]
 
             seg_dir = values["SEGMENTATION_DIR"]
             nifti_output_dir = values["NIFTI_OUTPUT_DIR"]
             csv_output_dir = values["CSV_OUTPUT_DIR"]
             task = values["TASK"]
             csv_name = values["TEXT_INPUT"]
+
+
+            home_dir = "/Volumes/T7 Shield/CAMONA Project/CAMONA_by_Tracer/FLU90"
+            seg_dir = "/Volumes/T7 Shield/CAMONA Project/CAMONA AI Segmentations/Total body/FLU90/NRRD Conversions"
+            nifti_output_dir = "/Volumes/T7 Shield/CAMONA Project/CAMONA PET NIFTIs (with metadata)/new FLU90"
+            csv_output_dir = "/Volumes/T7 Shield/CAMONA Project/Stats"
 
             if not home_dir or not seg_dir or not nifti_output_dir or not task or not csv_name:
                 sg.popup_error("All fields must be filled out!")
