@@ -887,10 +887,10 @@ def main():
             csv_name = values["TEXT_INPUT"]
 
 
-            home_dir = "/Volumes/T7 Shield/CAMONA Project/CAMONA_by_Tracer/FLU90"
-            seg_dir = "/Volumes/T7 Shield/CAMONA Project/CAMONA AI Segmentations/Total body/FLU90/NRRD Conversions"
-            nifti_output_dir = "/Volumes/T7 Shield/CAMONA Project/CAMONA PET NIFTIs (with metadata)/new FLU90"
-            csv_output_dir = "/Volumes/T7 Shield/CAMONA Project/Stats"
+            # home_dir = "/Volumes/T7 Shield/CAMONA Project/CAMONA_by_Tracer/FLU90"
+            # seg_dir = "/Volumes/T7 Shield/CAMONA Project/CAMONA AI Segmentations/Total body/FLU90/NRRD Conversions"
+            # nifti_output_dir = "/Volumes/T7 Shield/CAMONA Project/CAMONA PET NIFTIs (with metadata)/new FLU90"
+            # csv_output_dir = "/Volumes/T7 Shield/CAMONA Project/Stats"
 
             if not home_dir or not seg_dir or not nifti_output_dir or not task or not csv_name:
                 sg.popup_error("All fields must be filled out!")
